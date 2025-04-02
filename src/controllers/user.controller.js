@@ -163,8 +163,46 @@ export const refreshAccessToken = asyncHandler2(async (req,res) =>
 
     return res.json(200).
                cookie("accessToken",accessToken,options).
-               cookie("refreshToken",refreshTocken,options).
+               cookie("refreshToken",refreshToken,options).
                json(
-                new ApiResponse(200,{accessToken, refreshTocken},"Access Token refreshed succesfully")
+                new ApiResponse(200,{accessToken, refreshToken},"Access Token refreshed succesfully")
                )
 })
+
+
+export const changeUserPassword = asyncHandler2(async (req,res) => {
+     const {oldPassword, newPassword} = req.body
+     const user = User.findById(req.user?._id)
+     if(!user) throw new ApiError(404,"User not found")
+     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+     if(!isPasswordCorrect) throw new ApiError(401,"Password incorrect")
+     user.password = newPassword
+     await user.save({validateBeforeSave:false})
+     return res.status(200).
+                json(new ApiResponse(200,{},"Password changed succesfully"))
+
+})
+
+
+export const getCurrentUser = asyncHandler2(async (req,res) => {
+    return res.status(200).
+               json(new ApiResponse(200,req.user,"User fetched succesfully"))
+})
+
+export const updateAccountDetails = asyncHandler2(async (req,res) => {
+    const {fullName, username, email} = req.body
+    if(!fullName || !username || !email) throw new ApiError(400,"All fields are required")
+    const user = User.findByIdAndUpdate(
+                 req.user._id,
+                 {
+                    $set: {
+                       fullName,
+                       email,
+                       username
+                    }
+                 },
+                 {new:true}).select("-password -refreshToken")
+    return res.status(200).
+               json(new ApiResponse(200,user,"Account details updated succesfully"))
+})
+
